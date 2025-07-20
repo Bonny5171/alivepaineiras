@@ -1,21 +1,22 @@
 import { createNavigationContainerRef, DarkTheme, DefaultTheme, NavigationContainer, NavigationIndependentTree } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
+// import { useFonts } from 'expo-font';
 // import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
+// import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { AuthProvider } from '@/providers';
+// import { useColorScheme } from '@/hooks/useColorScheme';
+import { useColorScheme } from 'react-native';
+import { AuthProvider } from './providers';
 import { ErrorProvider } from '@/providers/ErrorProvider';
-import ErrorOverlay from './components/ErrorOverlay';
-import { ConfirmationProvider } from '@/providers/ConfirmProvider';
+import ErrorOverlay from '@/components/ErrorOverlay';
+import { ConfirmationProvider } from './providers/ConfirmProvider';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 // import AnimatedSplashScreen from './splashScrean'
-import { ServiceNotification } from '@/services/NotificationService';
-import * as Notifications from 'expo-notifications';
-import crashlytics from '@react-native-firebase/crashlytics';
+// import { ServiceNotification } from '@/services/NotificationService';
+// import * as Notifications from 'expo-notifications';
+// import crashlytics from '@react-native-firebase/crashlytics';
 import { setJSExceptionHandler } from 'react-native-exception-handler';
 import { LogBox } from 'react-native';
 
@@ -31,16 +32,17 @@ if (isDebug) {
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 // SplashScreen.preventAutoHideAsync();
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Notifications.setNotificationHandler({
+//   handleNotification: async () => ({
+//     shouldShowAlert: true,
+//     shouldPlaySound: true,
+//     shouldSetBadge: false,
+//   }),
+// });
 
 setJSExceptionHandler((error, isFatal) => {
-  crashlytics().recordError(error);
+//   crashlytics().recordError(error);
+    console.log('<<< DEBUG >>>', error);
 }, true);
 
 const Stack = createNativeStackNavigator();
@@ -48,9 +50,9 @@ export const navigationRef = createNavigationContainerRef();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+//   const [loaded] = useFonts({
+//     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+//   });
 
   // Checa se há chave/user salvos para definir a rota inicial
   const [initialRoute, setInitialRoute] = React.useState('login');
@@ -71,34 +73,34 @@ export default function RootLayout() {
     checkAuth();
   }, []);
 
-  React.useEffect(() => {
-    const setupNotifications = async () => {
-      try {
-        const token = await ServiceNotification.registerForPushNotificationsAsync();
-        console.log('Expo Push Token:', token);
+  // React.useEffect(() => {
+  //   const setupNotifications = async () => {
+  //     try {
+  //       const token = await ServiceNotification.registerForPushNotificationsAsync();
+  //       console.log('Expo Push Token:', token);
 
-        ServiceNotification.setNotificationListeners({
-          onReceive: (notification) => {
-            console.log('🔔 Notificação recebida:', notification);
-          },
-          onRespond: (response) => {
-            console.log('📲 Interação com notificação:', response);
+  //       ServiceNotification.setNotificationListeners({
+  //         onReceive: (notification) => {
+  //           console.log('🔔 Notificação recebida:', notification);
+  //         },
+  //         onRespond: (response) => {
+  //           console.log('📲 Interação com notificação:', response);
 
-            const data = response.notification.request.content.data;
-            if (data?.screen) {
-              navigationRef.navigate(data.screen); // ou outro comportamento
-            }
-          }
-        });
-      } catch (err) {
-        console.warn('Erro ao configurar notificações:', err);
-      }
-    };
+  //           const data = response.notification.request.content.data;
+  //           if (data?.screen) {
+  //             navigationRef.navigate(data.screen); // ou outro comportamento
+  //           }
+  //         }
+  //       });
+  //     } catch (err) {
+  //       console.warn('Erro ao configurar notificações:', err);
+  //     }
+  //   };
 
-    if (initialRoute) {
-      setupNotifications();
-    }
-  }, [initialRoute]);
+  //   if (initialRoute) {
+  //     setupNotifications();
+  //   }
+  // }, [initialRoute]);
 
 //   useEffect(() => {
 //     if (loaded) {
@@ -106,7 +108,8 @@ export default function RootLayout() {
 //     }
 //   }, [loaded]);
 
-  if (!loaded || !initialRoute) {
+  // if (!loaded || !initialRoute) {
+  if (!initialRoute) {
     return null;
   }
 
@@ -120,7 +123,7 @@ export default function RootLayout() {
                   <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
 
                     <Stack.Screen name="login" getComponent={() => require('./login').default} />
-                    <Stack.Screen name="(tabs)/(sports)/home" getComponent={() => require('./(tabs)/(sports)/home').default} />
+                    {/* <Stack.Screen name="(tabs)/(sports)/home" getComponent={() => require('./(tabs)/(sports)/home').default} />
                     <Stack.Screen name="(tabs)/(sports)/schedules" getComponent={() => require('./(tabs)/(sports)/schedules').default} />
                     <Stack.Screen name="(tabs)/(sports)/schedulingCalendar" getComponent={() => require('./(tabs)/(sports)/schedulingCalendar').default} />
                     <Stack.Screen name="(tabs)/(sports)/details" getComponent={() => require('./(tabs)/(sports)/details').default} />
@@ -131,11 +134,11 @@ export default function RootLayout() {
                     <Stack.Screen name="(tabs)/(sports)/transferRegistration" getComponent={() => require('./(tabs)/(sports)/transferRegistration').default} />
                     <Stack.Screen name="(tabs)/(sports)/transferRegistrationDetails" getComponent={() => require('./(tabs)/(sports)/transferRegistrationDetails').default} />
 
-                    <Stack.Screen name="(tabs)/(cultural)/home" getComponent={() => require('./(tabs)/(cultural)/home').default} />
+                    <Stack.Screen name="(tabs)/(cultural)/home" getComponent={() => require('./(tabs)/(cultural)/home').default} /> */}
 
-                    <Stack.Screen name="(mais)" getComponent={() => require('./(mais)/_layout').default} />
+                    {/* <Stack.Screen name="(mais)" getComponent={() => require('./(mais)/_layout').default} /> */}
 
-                    {/*  */}
+                    {/*  
                     <Stack.Screen name="(tabs)/(registrations)/home" getComponent={() => require('./(tabs)/(registrations)/home').default} />
                     <Stack.Screen name="(tabs)/(registrations)/new" getComponent={() => require('./(tabs)/(registrations)/new').default} />
 
@@ -160,17 +163,17 @@ export default function RootLayout() {
                     <Stack.Screen name="(invites)/visitant" getComponent={() => require('./(mais)/invites/visitantDetails').default} />
                     <Stack.Screen name="(invites)/list" getComponent={() => require('./(mais)/invites/inviteList').default} />
 
-                    <Stack.Screen name="(contact)" getComponent={() => require('./(mais)/contact/contact').default} />
+                    <Stack.Screen name="(contact)" getComponent={() => require('./(mais)/contact/contact').default} />*/}
 
-                    {/* Manifest screens */}
+                    {/* Manifest screens 
                     <Stack.Screen name="(manifest)/audioManifestDetails" getComponent={() => require('./(mais)/contact/audioManifestDetails').default} />
                     <Stack.Screen name="(manifest)/manifest" getComponent={() => require('./(mais)/contact/manifest').default} />
                     <Stack.Screen name="(manifest)/manifestList" getComponent={() => require('./(mais)/contact/manifestList').default} />
                     <Stack.Screen name="(manifest)/newText" getComponent={() => require('./(mais)/contact/newTextManifest').default} />
                     <Stack.Screen name="(manifest)/newAudioManifest" getComponent={() => require('./(mais)/contact/newAudioManifest').default} />
-                    <Stack.Screen name="(manifest)/textManifestDetails" getComponent={() => require('./(mais)/contact/textManifestDetails').default} />
+                    <Stack.Screen name="(manifest)/textManifestDetails" getComponent={() => require('./(mais)/contact/textManifestDetails').default} />*/}
 
-                    {/* Tabs */}
+                    {/* Tabs 
                     <Stack.Screen name="(tabs)" getComponent={() => require('./(tabs)/home').default} />
                     <Stack.Screen name="(tabs)/activity" getComponent={() => require('./(tabs)/activity').default} />
                     <Stack.Screen name="(tabs)/calendar" getComponent={() => require('./(tabs)/calendar').default} />
@@ -178,9 +181,9 @@ export default function RootLayout() {
 
                     <Stack.Screen name="(tabs)/ticket" getComponent={() => require('./(tabs)/ticket').default} />
                     <Stack.Screen name="ticketForm" getComponent={() => require('./(ticket)/ticketForm').default} />
-                    <Stack.Screen name="ticketConfirm" getComponent={() => require('./(ticket)/ticketConfirm').default} />
+                    <Stack.Screen name="ticketConfirm" getComponent={() => require('./(ticket)/ticketConfirm').default} />*/}
 
-                    {/* Financeiro */}
+                    {/* Financeiro 
                     <Stack.Screen
                       name="(financeiro)/home"
                       getComponent={() => require('./(financeiro)/home').default}
@@ -210,9 +213,9 @@ export default function RootLayout() {
                       name="(financeiro)/faturas"
                       getComponent={() => require('./(financeiro)/faturas').default}
                       options={{ title: "Faturas" }}
-                    />
+                    />*/}
 
-                    {/* New Activity */}
+                    {/* New Activity 
                     <Stack.Screen
                       name="(newActivity)/ActivitySelectionScreen"
                       getComponent={() => require('./(newActivity)/ActivitySelectionScreen').default}
@@ -245,9 +248,9 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="(consulta)/appointmentDetails"
                       getComponent={() => require('./(consulta)/appointmentDetails').default}
-                    />
+                    />*/}
 
-                    {/* Nova consulta */}
+                    {/* Nova consulta 
                     <Stack.Screen
                       name="(consulta)/newConsulta"
                       getComponent={() => require('./(consulta)/newConsulta').default}
@@ -260,20 +263,20 @@ export default function RootLayout() {
                     <Stack.Screen name="parqList" getComponent={() => require('./(parq)/parqList').default} />
                     <Stack.Screen name="parqForm" getComponent={() => require('./(parq)/parqForm').default} />
                     <Stack.Screen name="parqQuestions" getComponent={() => require('./(parq)/parqQuestions').default} />
-                    <Stack.Screen name="parqConfirm" getComponent={() => require('./(parq)/parqConfirm').default} />
+                    <Stack.Screen name="parqConfirm" getComponent={() => require('./(parq)/parqConfirm').default} />*/}
 
-                    {/* FAQ */}
+                    {/* FAQ 
                     <Stack.Screen name="faqDetails" getComponent={() => require('./(faq)/faqDetails').default} />
-                    <Stack.Screen name="faqList" getComponent={() => require('./(faq)/faqList').default} />
+                    <Stack.Screen name="faqList" getComponent={() => require('./(faq)/faqList').default} />*/}
 
-                    {/* Clube */}
+                    {/* Clube 
                     <Stack.Screen name="clube" getComponent={() => require('./(clube)/ClubeScreen').default} />
                     <Stack.Screen name="clubeList" getComponent={() => require('./(clube)/ClubeList').default} />
-                    <Stack.Screen name="clubeDetails" getComponent={() => require('./(clube)/ClubeDetails').default} />
+                    <Stack.Screen name="clubeDetails" getComponent={() => require('./(clube)/ClubeDetails').default} />*/}
 
                     {/* Clube - Grupos */}
 
-                    {/* Telas individuais */}
+                    {/* Telas individuais 
                     <Stack.Screen name="calendar" getComponent={() => require('./calendar').default} />
                     <Stack.Screen name="calendarDetails" getComponent={() => require('./calendarDetails').default} />
                     <Stack.Screen name="profile" getComponent={() => require('./profile').default} />
@@ -283,10 +286,10 @@ export default function RootLayout() {
                     <Stack.Screen name="notificationPreferences" getComponent={() => require('./notificationPreferences').default} />
                     <Stack.Screen name="screenSchedule" getComponent={() => require('./screenSchedule').default} />
                     <Stack.Screen name="movieSchedule" getComponent={() => require('./movieSchedule').default} />
-                    <Stack.Screen name="movieScheduleDetails" getComponent={() => require('./movieScheduleDetails').default} />
+                    <Stack.Screen name="movieScheduleDetails" getComponent={() => require('./movieScheduleDetails').default} />*/}
 
                   </Stack.Navigator>
-                  <StatusBar style="auto" />
+                  {/* <StatusBar style="auto" /> */}
                 </NavigationContainer>
               </NavigationIndependentTree>
           </ConfirmationProvider>
