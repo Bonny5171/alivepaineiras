@@ -7,7 +7,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from '@/providers';
 import { ErrorProvider } from '@/providers/ErrorProvider';
-import ErrorOverlay from '@/components/ErrorOverlay';
+import ErrorOverlay from './components/ErrorOverlay';
 import { ConfirmationProvider } from '@/providers/ConfirmProvider';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
