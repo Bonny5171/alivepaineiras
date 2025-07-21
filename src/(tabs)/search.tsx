@@ -8,6 +8,7 @@ import FooterTabBar from '@/components/FooterTabBar';
 import { useNavigation } from '@react-navigation/native';
 import { getRouteByIdServico } from '@/constants/serviceRoutes';
 import { listarServicos, ServicoItem } from '@/api/app/appointments';
+import { Linking } from 'react-native';
 
 export default function buscar() {
   const navigation = useNavigation();
@@ -239,9 +240,12 @@ export default function buscar() {
       // Abre o link no navegador externo
       onPress: () => {
         // @ts-ignore
-        import('expo-linking').then(Linking => {
-          Linking.openURL('https://clubepaineiras.showare.com.br/?sw_sc=Internet');
-        });
+        // import('expo-linking').then(Linking => {
+        //   Linking.openURL('https://clubepaineiras.showare.com.br/?sw_sc=Internet');
+        // });
+
+        Linking.openURL('https://clubepaineiras.showare.com.br/?sw_sc=Internet')
+          .catch(err => console.error('Erro ao abrir URL:', err));
       },
     },
     {

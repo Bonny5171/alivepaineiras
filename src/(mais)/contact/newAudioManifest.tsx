@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Pressable, Alert } from 'reac
 import { Audio } from 'expo-av';
 import { useError } from '@/providers/ErrorProvider';
 import { enviarAudio } from '@/api/app/ouvidoria';
-import * as FileSystem from 'expo-file-system';
+// import * as FileSystem from 'expo-file-system';
+import RNFS from 'react-native-fs';
 import { useConfirmation } from '@/providers/ConfirmProvider';
 
 import Header from '@/components/Header';
@@ -207,7 +208,8 @@ export default function AudioClipComponent() {
     // Função para converter o arquivo de áudio em base64
     const getAudioBase64 = async (uri: string) => {
         try {
-            const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+            // const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+            const base64 = await RNFS.readFile(uri, 'base64');
             return base64;
         } catch (err) {
             setError('Erro ao processar o áudio. Tente novamente.', 'error');

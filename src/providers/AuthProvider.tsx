@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Platform } from "react-native";
 // import * as Device from 'expo-device';
+import DeviceInfo from 'react-native-device-info';
 import axios from "axios";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AxiosResponse } from 'axios';
+import Config from 'react-native-config';
 
 // Defina a base do URL e o caminho do serviço
 const baseURL = 'https://clubepaineiras.com.br/AliveTeste';
@@ -29,7 +31,7 @@ export interface AuthContextType {
   nome: string;
   setNome: (chave: string) => void;
   ip: string;
-  // device: string;
+  device: string;
   appVersion: string;
   osVersion: string;
   logout: () => void;
@@ -67,6 +69,8 @@ export const getLogout = () => {
   return globalLogout;
 };
 
+let modelName = DeviceInfo.getModel();
+
 export const AuthProvider = ({ children, navigation }: { children: React.ReactNode, navigation: any }) => {
   const [user, setTitulo] = useState<any>(null);
   const [nome, setNome] = useState<any>(null);
@@ -74,7 +78,8 @@ export const AuthProvider = ({ children, navigation }: { children: React.ReactNo
   const [userkey, setUserkey] = useState<string>(""); // Novo estado para userkey
   const [ip, setIp] = useState<string>("");
   // const [device, setDevice] = useState<string>(Device.modelName || "Desconhecido");
-  const [appVersion, setAppVersion] = useState<string>(process.env.EXPO_PUBLIC_APP_VERSION || "Desconhecido");
+  const [device, setDevice] = useState<string>(modelName || "Desconhecido");
+  const [appVersion, setAppVersion] = useState<string>(Config.EXPO_PUBLIC_APP_VERSION || "Desconhecido");
   const [osVersion, setOsVersion] = useState<string>(Platform.Version.toString());
 
   useEffect(() => {
@@ -156,7 +161,7 @@ export const AuthProvider = ({ children, navigation }: { children: React.ReactNo
     userkey, // Inclui userkey no contexto
     setUserkey, // Inclui setter no contexto
     ip,
-    // device,
+    device,
     appVersion,
     osVersion,
     logout,

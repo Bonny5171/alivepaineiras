@@ -1,13 +1,14 @@
-import { View, Text, Image, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Modal, PermissionsAndroid, Platform } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import FileUploadBox from '../../components/FileUploadBox';
+import FileUploadBox from '../components/FileUploadBox';
 import { Wrapper } from '@/components/Wrapper';
 import Header from '@/components/Header';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import { launchImageLibrary } from 'react-native-image-picker';
+// import * as ImagePicker from 'expo-image-picker';
+// import * as FileSystem from 'expo-file-system';
+import RNFS from 'react-native-fs';
 import { gravarArquivosParq, exibirArquivosParq } from '@/api/app/parq';
-import { ActivityIndicator, Alert } from 'react-native';
 import { useError } from '@/providers/ErrorProvider';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
@@ -67,29 +68,68 @@ export default function parqForm() {
   }, [usuario?.TITULO]);
 
   // Função genérica para selecionar imagem e converter para base64
+  // const selecionarArquivo = async (
+  //   setUri: (uri: string) => void,
+  //   setBase64: (b64: string) => void,
+  //   clearUrl?: () => void
+  // ) => {
+  //   const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  //   if (!permissao.granted) {
+  //     alert('Permissão necessária para acessar arquivos.');
+  //     return;
+  //   }
+  //   const resultado = await ImagePicker.launchImageLibraryAsync({
+  //     mediaTypes: ImagePicker.MediaTypeOptions.All,
+  //     allowsEditing: true,
+  //     aspect: [4, 3],
+  //     quality: 0.8,
+  //   });
+  //   if (!resultado.canceled && resultado.assets?.length) {
+  //     const uri = resultado.assets[0].uri;
+  //     setUri(uri);
+  //     if (clearUrl) clearUrl();
+
+  //     const path = uri.startsWith('file://') ? uri.replace('file://', '') : uri;
+
+  //     const exists = await RNFS.exists(path);
+  //     if (exists) {
+  //       const fileInfo = await RNFS.stat(path); // Se você quiser manter a variável
+  //       const base64 = await RNFS.readFile(path, 'base64');
+  //       setBase64(base64);
+  //     }
+  //   }
+  // };
+
   const selecionarArquivo = async (
     setUri: (uri: string) => void,
     setBase64: (b64: string) => void,
     clearUrl?: () => void
   ) => {
-    const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissao.granted) {
-      alert('Permissão necessária para acessar arquivos.');
-      return;
+    if (Platform.OS === 'android') {
+      const permissao = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
+      );
+      if (permissao !== PermissionsAndroid.RESULTS.GRANTED) {
+        alert('Permissão necessária para acessar arquivos.');
+        return;
+      }
     }
-    const resultado = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
-      aspect: [4, 3],
+
+    const resultado = await launchImageLibrary({
+      mediaType: 'mixed',
       quality: 0.8,
+      selectionLimit: 1,
     });
-    if (!resultado.canceled) {
+
+    if (!resultado.didCancel && resultado.assets?.length) {
       const uri = resultado.assets[0].uri;
       setUri(uri);
       if (clearUrl) clearUrl();
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      if (fileInfo.exists) {
-        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+
+      const path = uri.startsWith('file://') ? uri.replace('file://', '') : uri;
+      const exists = await RNFS.exists(path);
+      if (exists) {
+        const base64 = await RNFS.readFile(path, 'base64');
         setBase64(base64);
       }
     }
@@ -121,15 +161,22 @@ export default function parqForm() {
   const fetchFileAsBase64 = async (url: string) => {
     try {
       if (!url) return '';
-      const response = await FileSystem.downloadAsync(url, FileSystem.cacheDirectory + getFileName(url));
-      if (response && response.uri) {
-        const base64 = await FileSystem.readAsStringAsync(response.uri, { encoding: FileSystem.EncodingType.Base64 });
+
+      const localPath = RNFS.CachesDirectoryPath + '/' + getFileName(url);
+      const response = await RNFS.downloadFile({
+        fromUrl: url,
+        toFile: localPath,
+      }).promise;
+
+      if (response && response.statusCode === 200) {
+        const base64 = await RNFS.readFile(localPath, 'base64');
         return base64;
       }
+
+      return '';
     } catch (e) {
       return '';
     }
-    return '';
   };
 
   // Função para enviar arquivos para o backend

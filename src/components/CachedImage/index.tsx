@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet, ImageStyle } from 'react-native';
-import * as FileSystem from 'expo-file-system';
-import { Image } from 'expo-image';
-import * as Crypto from 'expo-crypto';
+import { ActivityIndicator, View, StyleSheet, ImageStyle, Image } from 'react-native';
+// import * as FileSystem from 'expo-file-system';
+import RNFS from 'react-native-fs';
+// import { Image } from 'expo-image';
+// import * as Crypto from 'expo-crypto';
+import { SHA256 } from 'react-native-simple-crypto';
 
 type Props = {
   source: { uri: string };
@@ -26,18 +28,27 @@ const CachedImage: React.FC<Props> = ({
     if (!source?.uri) return;
 
     const loadImage = async () => {
+      
       try {
         const fileName = await generateFileName(source.uri);
-        const filePath = `${FileSystem.cacheDirectory}${fileName}`;
+        const filePath = `${RNFS.CachesDirectoryPath}/${fileName}`;
 
-        const metadata = await FileSystem.getInfoAsync(filePath);
-        if (metadata.exists) {
-          console.log('ARQUIVO JA EXISTE!!!')
+        const exists = await RNFS.exists(filePath);
+        if (exists) {
+          console.log('ARQUIVO JA EXISTE!!!');
           setUri(filePath);
         } else {
-          console.log('DOWNLOAD DE NOVA IMAGEM!!!')
-          const downloaded = await FileSystem.downloadAsync(source.uri, filePath);
-          setUri(downloaded.uri);
+          console.log('DOWNLOAD DE NOVA IMAGEM!!!');
+          const downloaded = await RNFS.downloadFile({
+            fromUrl: source.uri,
+            toFile: filePath,
+          }).promise;
+
+          if (downloaded.statusCode === 200) {
+            setUri(filePath);
+          } else {
+            throw new Error('Falha no download da imagem');
+          }
         }
       } catch (error) {
         console.warn('Erro ao cachear imagem:', error);
@@ -77,10 +88,12 @@ async function generateFileName(uri: string): Promise<string> {
   // Remove parâmetros da URL (tudo após o ?)
   const cleanUri = uri.split('?')[0];
   console.log('cleanUri >>', cleanUri); 
-  return await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    cleanUri
-  );
+  // return await Crypto.digestStringAsync(
+  //   Crypto.CryptoDigestAlgorithm.SHA256,
+  //   cleanUri
+  // );
+
+  return await SHA256.hash(cleanUri);
 }
 
 const styles = StyleSheet.create({

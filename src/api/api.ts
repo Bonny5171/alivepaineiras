@@ -1,10 +1,11 @@
 import { getLogout } from '@/providers/AuthProvider';
 import { convalidar } from '@/api/app/auth';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import Config from 'react-native-config';
 
 //Define se o modo de depuração está ativado
 // Se DEBUG for true, os logs serão exibidos no console
-const isDebug = process.env.EXPO_PUBLIC_DEBUG === 'true';
+const isDebug = Config.EXPO_PUBLIC_DEBUG === 'true';
 const DEBUG = __DEV__ && isDebug;
 
 // Códigos de cores ANSI

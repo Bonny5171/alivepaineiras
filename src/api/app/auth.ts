@@ -1,6 +1,9 @@
 import { AuthContextType, getAuthContext } from '@/providers/AuthProvider';
 import instance from '../api';
 import axios, { AxiosResponse } from 'axios';
+import Config from 'react-native-config';
+
+console.log('<<<<< Config >>>>>', Config)
 
 // Defina a base do URL e o caminho do serviço
 const baseURL = 'https://clubepaineiras.com.br/AliveTeste';
@@ -30,13 +33,24 @@ type AutenticarResponse = AutenticarResponseItem[];
 export const autenticar = async (params: AutenticarParams): Promise<AxiosResponse<AutenticarResponse>> => {
   const context = getAuthContext();
   const url = `${baseURL}/${servicePath}/Autenticar`;
+
+  console.log('params', {
+      TITULO: params.TITULO,
+      SENHA: params.SENHA,
+      IP: context.ip,
+      BROWSER: " ",
+      TOKEN: Config.EXPO_PUBLIC_TOKEN || 'Desconhecido',
+      DISPOSITIVO: context.device,
+      VERSAO_APP: context.appVersion,
+      VERSAO_OS: context.osVersion,
+    })
   const response = await instance.get(url, {
     params: {
       TITULO: params.TITULO,
       SENHA: params.SENHA,
       IP: context.ip,
       BROWSER: " ",
-      TOKEN: process.env.EXPO_PUBLIC_TOKEN || 'Desconhecido',
+      TOKEN: Config.EXPO_PUBLIC_TOKEN || 'Desconhecido',
       DISPOSITIVO: context.device,
       VERSAO_APP: context.appVersion,
       VERSAO_OS: context.osVersion,

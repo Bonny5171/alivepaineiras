@@ -8,7 +8,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { ListarFaturasItem } from '@/api/app/appTransformer';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useError } from '@/providers/ErrorProvider';
-import * as Clipboard from 'expo-clipboard';
+// import * as Clipboard from 'expo-clipboard';
+import Clipboard from '@react-native-clipboard/clipboard';
 import Header from '@/components/Header';
 
 export default function Details() {
@@ -36,9 +37,10 @@ export default function Details() {
 
     const handleCopy = () => {
         if (faturaData && faturaData[0].CODIGO) {
-            Clipboard.setStringAsync(faturaData[0].CODIGO).then(() => {
-                setError('Copiado para a área de transferência', 'success', 3000, 'Você já pode efetuar o pagamento no app do seu banco.');
-            });
+            Clipboard.setString(faturaData[0].CODIGO);
+            // .then(() => {
+            //     setError('Copiado para a área de transferência', 'success', 3000, 'Você já pode efetuar o pagamento no app do seu banco.');
+            // });
         }
     }
 

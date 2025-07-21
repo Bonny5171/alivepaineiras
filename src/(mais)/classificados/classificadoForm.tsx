@@ -3,13 +3,15 @@ import Header from '@/components/Header';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Wrapper } from '@/components/Wrapper';
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ActivityIndicator, ScrollView, PermissionsAndroid, Platform  } from 'react-native';
 import { useAuth } from '@/providers/AuthProvider';
 import { useError } from '@/providers/ErrorProvider';
 import { useNavigation } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
+// import * as ImagePicker from 'expo-image-picker';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { gravarImagemNotion } from '@/api/app/ouvidoria';
-import * as FileSystem from 'expo-file-system';
+// import * as FileSystem from 'expo-file-system';
+import RNFS from 'react-native-fs';
 import { useConfirmation } from '@/providers/ConfirmProvider';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -114,46 +116,102 @@ export default function AnuncioForm({ route }: any) {
         fetchData();
     }, []);
 
+    const solicitarPermissaoGaleria = async () => {
+        if (Platform.OS !== 'android') return true;
+
+        const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+            {
+            title: 'Permissão para acessar fotos',
+            message: 'Precisamos de acesso à sua galeria para selecionar imagens.',
+            buttonPositive: 'OK',
+            }
+        );
+
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+    };
+
+    // const handleSelecionarImagemCapa = async () => {
+    //     const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    //     if (!permissao.granted) {
+    //         setError('Permissão necessária para acessar as fotos.', 'error');
+    //         return;
+    //     }
+    //     const resultado = await ImagePicker.launchImageLibraryAsync({
+    //         mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    //         allowsEditing: true,
+    //         aspect: [4, 3],
+    //         quality: 0.8,
+    //     });
+    //     if (!resultado.canceled) {
+    //         setImagemCapa(resultado.assets[0].uri);
+    //     }
+    // };
     const handleSelecionarImagemCapa = async () => {
-        const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permissao.granted) {
+        const permissao = await solicitarPermissaoGaleria();
+        if (!permissao) {
             setError('Permissão necessária para acessar as fotos.', 'error');
             return;
         }
-        const resultado = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
+
+        const resultado = await launchImageLibrary({
+            mediaType: 'photo',
             quality: 0.8,
+            selectionLimit: 1,
         });
-        if (!resultado.canceled) {
+
+        if (!resultado.didCancel && resultado.assets && resultado.assets.length > 0) {
             setImagemCapa(resultado.assets[0].uri);
         }
-    };
+        };
     const removerImagemCapa = () => setImagemCapa(null);
 
+    // const handleSelecionarGaleria = async () => {
+    //     if (galeria.length >= 6) {
+    //         setError('Você pode selecionar até 6 imagens.', 'error');
+    //         return;
+    //     }
+    //     const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    //     if (!permissao.granted) {
+    //         setError('Permissão necessária para acessar as fotos.', 'error');
+    //         return;
+    //     }
+    //     const resultado = await ImagePicker.launchImageLibraryAsync({
+    //         mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    //         allowsEditing: true,
+    //         aspect: [4, 3],
+    //         quality: 0.8,
+    //         selectionLimit: 6 - galeria.length,
+    //     });
+    //     if (!resultado.canceled) {
+    //         const novas = resultado.assets.map(a => a.uri).slice(0, 6 - galeria.length);
+    //         setGaleria([...galeria, ...novas]);
+    //     }
+    // };
     const handleSelecionarGaleria = async () => {
         if (galeria.length >= 6) {
             setError('Você pode selecionar até 6 imagens.', 'error');
             return;
         }
-        const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permissao.granted) {
+
+        const permissao = await solicitarPermissaoGaleria();
+        if (!permissao) {
             setError('Permissão necessária para acessar as fotos.', 'error');
             return;
         }
-        const resultado = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
+
+        const resultado = await launchImageLibrary({
+            mediaType: 'photo',
             quality: 0.8,
-            selectionLimit: 6 - galeria.length,
+            selectionLimit: 6 - galeria.length, // funciona no Android 13+
         });
-        if (!resultado.canceled) {
-            const novas = resultado.assets.map(a => a.uri).slice(0, 6 - galeria.length);
+
+        if (!resultado.didCancel && resultado.assets) {
+            const novas = resultado.assets.map((a: Asset) => a.uri).slice(0, 6 - galeria.length);
             setGaleria([...galeria, ...novas]);
         }
     };
+
     const removerImagemGaleria = (uri: string) => setGaleria(galeria.filter(img => img !== uri));
 
     const handleSubmit = async () => {
@@ -178,7 +236,8 @@ export default function AnuncioForm({ route }: any) {
                             let capaObj = null;
                             if (imagemCapa && !imagemCapa.startsWith('http')) {
                                 setUploadingCapa(true);
-                                const base64 = await FileSystem.readAsStringAsync(imagemCapa, { encoding: FileSystem.EncodingType.Base64 });
+                                // const base64 = await FileSystem.readAsStringAsync(imagemCapa, { encoding: FileSystem.EncodingType.Base64 });
+                                const base64 = await RNFS.readFile(imagemCapa, 'base64');
                                 const res = await gravarImagemNotion({ IDIMAGEM: `capa_${uniquePrefix}`, IMAGEM: base64 });
                                 if (res.ERRO) throw new Error(res.MSG_ERRO || 'Erro ao enviar imagem de capa');
                                 capaObj = { name: 'Capa', url: res.LINK };

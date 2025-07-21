@@ -1,8 +1,9 @@
 import { Client } from "@notionhq/client";
+import Config from 'react-native-config';
 
-const option = { auth: process.env.EXPO_PUBLIC_NOTION_READ_KEY }
+const option = { auth: Config.EXPO_PUBLIC_NOTION_READ_KEY }
 
-const isDebug = process.env.EXPO_PUBLIC_DEBUG === 'true';
+const isDebug = Config.EXPO_PUBLIC_DEBUG === 'true';
 if (isDebug) {
     option.logLevel = 'debug';
 }

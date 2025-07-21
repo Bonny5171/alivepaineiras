@@ -18,7 +18,7 @@ import {
   import { useError } from '@/providers/ErrorProvider';
   import { useNavigation } from '@react-navigation/native';
   import { useColorScheme } from '@/hooks/useColorScheme';
-  import { version } from '../package.json';
+  // import { version } from '../package.json';
 
   export default function Intro() {
     const backgroundColor = useThemeColor({}, 'background');
@@ -158,7 +158,7 @@ import {
             </Text>
           </View>
   
-          <Text style={{ color: textColor, marginTop: 0, fontSize: 11, }}>Versão {version}</Text>
+          {/* <Text style={{ color: textColor, marginTop: 0, fontSize: 11, }}>Versão {version}</Text> */}
         </SafeAreaView>
       </Wrapper>
       </KeyboardAvoidingView>

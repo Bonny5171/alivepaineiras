@@ -23,9 +23,11 @@ import { useNavigation } from '@react-navigation/native';
 import FeedbackScreen from '@/components/FeedbackScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { ServiceNotification } from '@/services/NotificationService';
-import messaging from '@react-native-firebase/messaging';
+// import messaging from '@react-native-firebase/messaging';
 import * as Notifications from 'expo-firebase-messaging';
-import * as Clipboard from 'expo-clipboard';
+// import * as Clipboard from 'expo-clipboard';
+import Clipboard from '@react-native-clipboard/clipboard';
+
 
 const MINUTES_AGO = 30;
 
@@ -414,10 +416,10 @@ const HomeScreen = () => {
     setToken(objToken);
   }
 
-  useEffect(() => {
-      requestUserPermission();
-      getToken()
-  }, [])
+  // useEffect(() => {
+  //     requestUserPermission();
+  //     getToken()
+  // }, [])
 
 
   return (
@@ -465,7 +467,7 @@ const HomeScreen = () => {
                     {showToken && (
                       <Pressable
                         onPress={() => {
-                          Clipboard.setStringAsync(token);
+                          Clipboard.setString(token);
                           Alert.alert('Token copiado!', 'O token foi copiado para a área de transferência.');
                         }}
                         style={({ pressed }) => [

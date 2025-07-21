@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Switch, Image, Appearance, Alert, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Switch, Image, Appearance, Alert, Animated, PermissionsAndroid, Platform  } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from './ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -9,12 +9,15 @@ import { uploadAvatar } from '@/api/app/associados';
 import { useAuth } from '@/providers';
 import { Wrapper } from './Wrapper';
 import Header from '@/components/Header';
-import * as ImagePicker from 'expo-image-picker';
+// import * as ImagePicker from 'expo-image-picker';
+import { launchImageLibrary } from 'react-native-image-picker';
+import ImageResizer from 'react-native-image-resizer';
+import RNFS from 'react-native-fs';
 import { getAuthContext } from '@/providers/AuthProvider';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { version } from '../package.json';
+// import { version } from '../package.json';
 
 type ProfileItem = {
   title: string;
@@ -116,66 +119,142 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
     }
   };
 
+  // const handleEditAvatar = async () => {
+  //   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  //   if (status !== 'granted') {
+  //     Alert.alert('Permissão negada', 'É necessário permitir o acesso à galeria para selecionar uma imagem.');
+  //     return;
+  //   }
+  
+  //   const result = await ImagePicker.launchImageLibraryAsync({
+  //     mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  //     allowsEditing: true,
+  //     aspect: [1, 1],
+  //     quality: 1,
+  //     base64: true,
+  //   });
+  
+  //   if (result.canceled) {
+  //     console.log('Seleção de imagem cancelada');
+  //     return;
+  //   }
+  
+  //   if (!result.assets || !result.assets[0].base64) {
+  //     Alert.alert('Erro', 'Falha ao obter a imagem selecionada');
+  //     return;
+  //   }
+  
+  //   setIsLoading(true);
+  //   try {
+  //     const manipulatedImage = await ImageManipulator.manipulateAsync(
+  //       result.assets[0].uri,
+  //       [{ resize: { width: 200, height: 200 } }],
+  //       { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+  //     );
+  
+  //     if (!manipulatedImage.base64) {
+  //       throw new Error('Falha ao obter base64 da imagem redimensionada');
+  //     }
+  
+  //     const context = getAuthContext();
+  //     const base64Image = manipulatedImage.base64;
+  
+  //     const uploadParams = {
+  //       TITULO: passedTitulo,
+  //       CHAVE: context.chave,
+  //       AVATAR: base64Image,
+  //     };
+  
+  //     console.log('Enviando upload com parâmetros:', uploadParams);
+  
+  //     const uploadResponse = await uploadAvatar(uploadParams);
+  //     console.log('Resposta do upload:', JSON.stringify(uploadResponse, null, 2));
+  
+  //     if (uploadResponse[0].ERRO) {
+  //       Alert.alert('Erro', uploadResponse[0].MSG_ERRO || 'Falha ao atualizar o avatar');
+  //       return;
+  //     }
+  
+  //     // Update the cache key to force re-render
+  //     setImageCacheKey(Date.now().toString());
+  
+  //     // Reload profile from server to get the updated avatar URL
+  //     await loadProfile();
+  //     showToastMessage();
+
+  //   } catch (error: any) {
+  //     console.error('Erro ao fazer upload do avatar:', {
+  //       message: error.message,
+  //       response: error.response?.data,
+  //       status: error.response?.status,
+  //     });
+  //     Alert.alert('Erro', 'Falha ao enviar o avatar para o servidor');
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const handleEditAvatar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permissão negada', 'É necessário permitir o acesso à galeria para selecionar uma imagem.');
-      return;
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert('Permissão negada', 'É necessário permitir o acesso à galeria para selecionar uma imagem.');
+        return;
+      }
     }
-  
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-      base64: true,
+
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      includeBase64: false,
+      selectionLimit: 1,
     });
-  
-    if (result.canceled) {
+
+    if (result.didCancel) {
       console.log('Seleção de imagem cancelada');
       return;
     }
-  
-    if (!result.assets || !result.assets[0].base64) {
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) {
       Alert.alert('Erro', 'Falha ao obter a imagem selecionada');
       return;
     }
-  
+
     setIsLoading(true);
     try {
-      const manipulatedImage = await ImageManipulator.manipulateAsync(
-        result.assets[0].uri,
-        [{ resize: { width: 200, height: 200 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      const resizedImage = await ImageResizer.createResizedImage(
+        asset.uri,
+        200,
+        200,
+        'JPEG',
+        80,
+        0,
+        undefined,
+        true
       );
-  
-      if (!manipulatedImage.base64) {
-        throw new Error('Falha ao obter base64 da imagem redimensionada');
-      }
-  
+
+      const base64Image = await RNFS.readFile(resizedImage.uri, 'base64');
       const context = getAuthContext();
-      const base64Image = manipulatedImage.base64;
-  
+
       const uploadParams = {
         TITULO: passedTitulo,
         CHAVE: context.chave,
         AVATAR: base64Image,
       };
-  
+
       console.log('Enviando upload com parâmetros:', uploadParams);
-  
+
       const uploadResponse = await uploadAvatar(uploadParams);
       console.log('Resposta do upload:', JSON.stringify(uploadResponse, null, 2));
-  
+
       if (uploadResponse[0].ERRO) {
         Alert.alert('Erro', uploadResponse[0].MSG_ERRO || 'Falha ao atualizar o avatar');
         return;
       }
-  
-      // Update the cache key to force re-render
+
       setImageCacheKey(Date.now().toString());
-  
-      // Reload profile from server to get the updated avatar URL
       await loadProfile();
       showToastMessage();
 
@@ -421,7 +500,7 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
           </TouchableOpacity>
         )}
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ color: textColor, marginTop: 0, fontSize: 11, }}>Versão {version}</Text>
+          {/* <Text style={{ color: textColor, marginTop: 0, fontSize: 11, }}>Versão {version}</Text> */}
         </View>
       </Wrapper>
       {showToast && (

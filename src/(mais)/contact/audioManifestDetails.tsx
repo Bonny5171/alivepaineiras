@@ -5,17 +5,17 @@ import { Wrapper } from '@/components/Wrapper';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Audio } from 'expo-av';
+import Sound from 'react-native-sound';
 
 const AudioDenuncia = ({ navigation, route }: any) => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [sound, setSound] = useState<Sound | null>(null);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [respostaSecretaria, setRespostaSecretaria] = useState<string | null>(null);
+  const intervalRef = useRef<any>(null);
 
-  // Pega dados do item da rota
   const item = route?.params?.item || {};
 
   const getStatusColor = (status: string) => {
@@ -30,63 +30,65 @@ const AudioDenuncia = ({ navigation, route }: any) => {
     const fetchAnexos = async () => {
       if (route?.params?.item) {
         const anexos = await listarAnexosURL(route.params.item.IDOCORRENCIA);
-        if (anexos && anexos.length > 0 && anexos[0].LINK_ARQUIVO) {
+        if (anexos?.[0]?.LINK_ARQUIVO) {
           setAudioUrl(anexos[0].LINK_ARQUIVO);
         }
-        // Busca resposta da secretaria
         const ocorrencia = await exibirOcorrencia(route.params.item.IDOCORRENCIA);
         setRespostaSecretaria(ocorrencia?.RESPOSTA || null);
       }
     };
     fetchAnexos();
+
     return () => {
       if (sound) {
-        sound.unloadAsync();
+        sound.release();
+        clearInterval(intervalRef.current);
       }
     };
   }, [route]);
 
-  const handlePlayPress = async () => {
-    try {
-      if (!audioUrl) return;
-      if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
+  const handlePlayPress = () => {
+    if (!audioUrl) return;
+
+    if (sound) {
+      sound.stop(() => {
         setIsPlaying(false);
         setProgress(0);
-        setDuration(0);
-      }
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: audioUrl },
-        { shouldPlay: true }
-      );
+      });
+      sound.release();
+      setSound(null);
+      clearInterval(intervalRef.current);
+      return;
+    }
+
+    const newSound = new Sound(audioUrl, undefined, (error) => {
+      if (error) return;
+      setDuration(newSound.getDuration());
       setSound(newSound);
       setIsPlaying(true);
-      setProgress(0);
-      setDuration(0);
-      newSound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.isLoaded) {
-          setProgress(status.positionMillis || 0);
-          setDuration(status.durationMillis || 0);
-          if (status.didJustFinish) {
-            setIsPlaying(false);
-            setProgress(0);
-          }
+
+      newSound.play((success) => {
+        if (success) {
+          setIsPlaying(false);
+          setProgress(0);
         }
+        newSound.release();
+        setSound(null);
+        clearInterval(intervalRef.current);
       });
-    } catch (err) {
-      setIsPlaying(false);
-    }
+
+      intervalRef.current = setInterval(() => {
+        newSound.getCurrentTime((seconds) => setProgress(seconds));
+      }, 500);
+    });
   };
 
-  const formatTime = (millis: number) => {
-    const totalSeconds = Math.floor((millis || 0) / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
+  const formatTime = (sec: number) => {
+    const minutes = Math.floor(sec / 60);
+    const seconds = Math.floor(sec % 60);
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
-  // Theme colors
   const background = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({}, 'background2');
   const iconBg = useThemeColor({}, 'background2');
@@ -104,10 +106,9 @@ const AudioDenuncia = ({ navigation, route }: any) => {
   return (
     <>
       <Header title="Detalhes da manifestação" />
-      <Wrapper style={[styles.container, { backgroundColor: background }]}> 
-        {/* Header */}
+      <Wrapper style={[styles.container, { backgroundColor: background }]}>
         <View style={styles.header}>
-          <View style={[styles.iconPlaceholder, { backgroundColor: iconBg }]} >
+          <View style={[styles.iconPlaceholder, { backgroundColor: iconBg }]}>
             <IconSymbol
               library="fontawesome"
               name="microphone"
@@ -119,11 +120,10 @@ const AudioDenuncia = ({ navigation, route }: any) => {
           <Text style={[styles.date, { color: dateColor }]}>{item.DATA || '-'}</Text>
         </View>
 
-        {/* Info Card */}
-        <View style={[styles.card, { backgroundColor: cardBackground }]}> 
+        <View style={[styles.card, { backgroundColor: cardBackground }]}>
           <View style={styles.row}>
             <Text style={[styles.label, { color: labelColor }]}>Status</Text>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.STATUS) }]}> 
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.STATUS) }]}>
               <Text style={styles.statusText}>{item.STATUS || '-'}</Text>
             </View>
           </View>
@@ -133,9 +133,8 @@ const AudioDenuncia = ({ navigation, route }: any) => {
           </View>
         </View>
 
-        {/* Clípe de Áudio */}
         <Text style={[styles.sectionTitle, { color: sectionTitleColor }]}>CLIPE DE ÁUDIO</Text>
-        <View style={[styles.audioCard, { backgroundColor: cardBackground }]}> 
+        <View style={[styles.audioCard, { backgroundColor: cardBackground }]}>
           <TouchableOpacity style={[styles.playButton, { backgroundColor: playButtonBg }]} onPress={handlePlayPress} disabled={!audioUrl}>
             <IconSymbol
               library="fontawesome"
@@ -144,16 +143,17 @@ const AudioDenuncia = ({ navigation, route }: any) => {
               color="#fff"
             />
           </TouchableOpacity>
-          <View style={[styles.progressBarBackground, { backgroundColor: progressBg }]}> 
+          <View style={[styles.progressBarBackground, { backgroundColor: progressBg }]}>
             <View style={[styles.progressBarFill, { width: duration ? `${(progress / duration) * 100}%` : '0%', backgroundColor: progressBar }]} />
           </View>
-          <Text style={{ color: labelColor, fontSize: 12, marginLeft: 8 }}>{formatTime(progress)} / {formatTime(duration)}</Text>
+          <Text style={{ color: labelColor, fontSize: 12, marginLeft: 8 }}>
+            {formatTime(progress)} / {formatTime(duration)}
+          </Text>
         </View>
 
-        {/* Resposta */}
         <Text style={[styles.sectionTitle, { color: sectionTitleColor }]}>RESPOSTA DA SECRETARIA</Text>
-        <View style={[styles.responseCard, { backgroundColor: cardBackground }]}> 
-          <Text style={[styles.responseText, { color: responseTextColor }]}>{respostaSecretaria ? respostaSecretaria : 'Nenhuma resposta atribuída.'}</Text>
+        <View style={[styles.responseCard, { backgroundColor: cardBackground }]}>
+          <Text style={[styles.responseText, { color: responseTextColor }]}>{respostaSecretaria || 'Nenhuma resposta atribuída.'}</Text>
         </View>
       </Wrapper>
     </>
@@ -161,95 +161,116 @@ const AudioDenuncia = ({ navigation, route }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  iconPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 20,
-    marginBottom: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  date: {
-  },
-  card: {
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 24,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-  },
-  value: {
-    fontWeight: '600',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  statusText: {
-    color: '#fff', // keep white for contrast
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontWeight: 'bold',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  audioCard: {
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 24,
-  },
-  playButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  progressBarBackground: {
-    height: 6,
-    flex: 1,
-    borderRadius: 10,
-  },
-  progressBarFill: {
-    height: 6,
-    borderRadius: 10,
-  },
-  responseCard: {
-    borderRadius: 20,
-    padding: 16,
-  },
-  responseText: {
-    fontSize: 14,
-  },
+  container: { flex: 1, padding: 16 },
+  header: { alignItems: 'center', marginBottom: 16 },
+  iconPlaceholder: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: 'bold', marginTop: 8 },
+  date: { fontSize: 14 },
+  card: { padding: 16, borderRadius: 12, marginBottom: 16 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  label: { fontSize: 14 },
+  value: { fontSize: 14, fontWeight: '600' },
+  statusBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8 },
+  statusText: { fontSize: 12, color: '#fff' },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginVertical: 12 },
+  audioCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12 },
+  playButton: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
+  progressBarBackground: { flex: 1, height: 6, borderRadius: 3, marginLeft: 12, overflow: 'hidden' },
+  progressBarFill: { height: 6 },
+  responseCard: { padding: 16, borderRadius: 12 },
+  responseText: { fontSize: 14, lineHeight: 20 },
 });
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     padding: 20,
+//   },
+//   header: {
+//     alignItems: 'center',
+//     marginBottom: 24,
+//   },
+//   iconPlaceholder: {
+//     width: 100,
+//     height: 100,
+//     borderRadius: 20,
+//     marginBottom: 10,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//   },
+//   title: {
+//     fontSize: 20,
+//     fontWeight: 'bold',
+//   },
+//   date: {
+//   },
+//   card: {
+//     borderRadius: 20,
+//     padding: 16,
+//     marginBottom: 24,
+//   },
+//   row: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     marginBottom: 12,
+//   },
+//   label: {
+//     fontSize: 14,
+//   },
+//   value: {
+//     fontWeight: '600',
+//   },
+//   statusBadge: {
+//     paddingHorizontal: 12,
+//     paddingVertical: 4,
+//     borderRadius: 20,
+//   },
+//   statusText: {
+//     color: '#fff', // keep white for contrast
+//     fontSize: 12,
+//     fontWeight: '600',
+//   },
+//   sectionTitle: {
+//     fontWeight: 'bold',
+//     marginBottom: 8,
+//     marginTop: 12,
+//   },
+//   audioCard: {
+//     borderRadius: 20,
+//     padding: 16,
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     gap: 12,
+//     marginBottom: 24,
+//   },
+//   playButton: {
+//     width: 50,
+//     height: 50,
+//     borderRadius: 25,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//   },
+//   playText: {
+//     color: '#fff',
+//     fontSize: 20,
+//     fontWeight: 'bold',
+//   },
+//   progressBarBackground: {
+//     height: 6,
+//     flex: 1,
+//     borderRadius: 10,
+//   },
+//   progressBarFill: {
+//     height: 6,
+//     borderRadius: 10,
+//   },
+//   responseCard: {
+//     borderRadius: 20,
+//     padding: 16,
+//   },
+//   responseText: {
+//     fontSize: 14,
+//   },
+// });
 
 export default AudioDenuncia;

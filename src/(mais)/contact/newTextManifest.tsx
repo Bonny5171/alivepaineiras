@@ -12,9 +12,12 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  PermissionsAndroid, Platform 
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+// import * as ImagePicker from 'expo-image-picker';
+// import * as FileSystem from 'expo-file-system';
+import RNFS from 'react-native-fs';
 import { gerarProtocolo, gravarImagem, GravarImagemParams, gravarOcorrencia, GravarOcorrenciaParams } from '@/api/app/ouvidoria';
 import { useError } from '@/providers/ErrorProvider';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -85,25 +88,66 @@ export default function ManifestacaoForm() {
     }
   }, [route.params]);
 
-  const handleSelecionarImagem = async () => {
-    const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  // const handleSelecionarImagem = async () => {
+  //   const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!permissao.granted) {
-      Alert.alert('Permissão necessária', 'Precisamos da permissão para acessar suas fotos.');
+  //   if (!permissao.granted) {
+  //     Alert.alert('Permissão necessária', 'Precisamos da permissão para acessar suas fotos.');
+  //     return;
+  //   }
+
+  //   const resultado = await ImagePicker.launchImageLibraryAsync({
+  //     mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  //     allowsEditing: true,
+  //     aspect: [4, 3],
+  //     quality: 0.8, // Reduzindo um pouco a qualidade para arquivos menores
+  //   });
+
+  //   if (!resultado.canceled) {
+  //     setImagem(resultado.assets[0].uri);
+  //   }
+  // };
+
+  const handleSelecionarImagem = async () => {
+    // Solicita permissão apenas no Android
+    if (Platform.OS === 'android') {
+      const permissao = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        {
+          title: 'Permissão necessária',
+          message: 'Precisamos da permissão para acessar suas fotos.',
+          buttonPositive: 'OK',
+        }
+      );
+
+      if (permissao !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert('Permissão necessária', 'Precisamos da permissão para acessar suas fotos.');
+        return;
+      }
+    }
+
+    const resultado = await launchImageLibrary({
+      mediaType: 'photo',
+      quality: 0.8, // reduz qualidade para arquivos menores
+      maxWidth: 1200,
+      maxHeight: 900,
+      selectionLimit: 1,
+    });
+
+    if (resultado.didCancel) {
       return;
     }
 
-    const resultado = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8, // Reduzindo um pouco a qualidade para arquivos menores
-    });
+    if (resultado.errorCode) {
+      Alert.alert('Erro', resultado.errorMessage || 'Erro ao selecionar a imagem.');
+      return;
+    }
 
-    if (!resultado.canceled) {
+    if (resultado.assets && resultado.assets.length > 0) {
       setImagem(resultado.assets[0].uri);
     }
   };
+
 
   const removerImagem = () => {
     setImagem(null);
@@ -147,14 +191,14 @@ export default function ManifestacaoForm() {
 
   const converterImagemParaBase64 = async (uri: string) => {
     try {
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      if (!fileInfo.exists) {
+      const path = uri.startsWith('file://') ? uri.replace('file://', '') : uri;
+
+      const exists = await RNFS.exists(path);
+      if (!exists) {
         throw new Error('Arquivo não encontrado');
       }
 
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      const base64 = await RNFS.readFile(path, 'base64');
 
       // Retorna apenas o Base64 puro, sem o prefixo
       return base64;
